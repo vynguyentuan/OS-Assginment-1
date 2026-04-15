@@ -1,15 +1,13 @@
-# Bỏ qua các file object sinh ra khi compile
+# 1. Bỏ qua các sản phẩm của quá trình biên dịch 
 *.o
 obj/
+os        
 
-# Bỏ qua file thực thi (file chạy)
-os
-os_syscall
-sched_*
-os_*
-
-# Bỏ qua các file cấu hình của IDE/Editor
+# 2. Bỏ qua các file rác của hệ điều hành và IDE 
 .vscode/
 .idea/
 *.swp
 .DS_Store
+*.log  
+
+src/syscalltbl.lst
