@@ -1,0 +1,15 @@
+# Bỏ qua các file object sinh ra khi compile
+*.o
+obj/
+
+# Bỏ qua file thực thi (file chạy)
+os
+os_syscall
+sched_*
+os_*
+
+# Bỏ qua các file cấu hình của IDE/Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
