@@ -16,6 +16,8 @@
 
 #include "string.h"
 #include "mm.h"
+#ifdef MM64
+#include "mm64.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -115,7 +117,7 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, addr_t vmastart, a
 
   while (vma != NULL)
   {
-    if (vma != cur_area && OVERLAP(cur_area->vm_start, cur_area->vm_end, vma->vm_start, vma->vm_end))
+    if (vma != cur_area && OVERLAP(vmastart, vmaend, vma->vm_start, vma->vm_end))
     {
       return -1;
     }
@@ -134,18 +136,45 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, addr_t vmastart, a
  */
 int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
 {
-  //struct vm_rg_struct * newrg = malloc(sizeof(struct vm_rg_struct));
+  struct vm_rg_struct * newrg = malloc(sizeof(struct vm_rg_struct));
+  if (newrg == NULL)
+    return -1;
 
   /* TOTO with new address scheme, the size need tobe aligned 
    *      the raw inc_sz maybe not fit pagesize
    */ 
-  //addr_t inc_amt;
+  #ifdef MM64
+    addr_t inc_amt    = PAGING64_PAGE_ALIGNSZ(inc_sz);
+    int    incnumpage = (int)(inc_amt / PAGING64_PAGESZ);
+  #else
+    addr_t inc_amt    = PAGING_PAGE_ALIGNSZ(inc_sz);
+    int    incnumpage = (int)(inc_amt / PAGING_PAGESZ);
+  #endif
 
-//  int incnumpage =  inc_amt / PAGING_PAGESZ;
+  struct vm_rg_struct *area = get_vm_area_node_at_brk(caller, vmaid, inc_sz, inc_amt);
+  if (area == NULL)
+  {
+    free(newrg);
+    return -1;
+  }
+
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->krnl->mm, vmaid);
+  if (cur_vma == NULL)
+  {
+    free(newrg);
+    free(area);
+    return -1;
+  }
 
   /* TODO Validate overlap of obtained region */
   //if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0)
   //  return -1; /*Overlap and failed allocation */
+  if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0)
+  {
+    free(newrg);
+    free(area);
+    return -1; //Overlap
+  }
 
   /* TODO: Obtain the new vm area based on vmaid */
   //cur_vma->vm_end... 
@@ -157,7 +186,26 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
 //                   old_end, incnumpage , newrg) < 0)
 //    return -1; /* Map the memory to MEMRAM */
 
+  addr_t old_vm_end = cur_vma->vm_end;
+  addr_t old_sbrk   = cur_vma->sbrk;
+
+  cur_vma->vm_end += inc_amt;
+  cur_vma->sbrk   += inc_amt;
+
+  if (vm_map_ram(caller, area->rg_start, area->rg_end,
+                 old_sbrk, incnumpage, newrg) < 0)
+  {
+    // ROLLBACK
+    cur_vma->vm_end = old_vm_end;
+    cur_vma->sbrk   = old_sbrk;
+    free(newrg);
+    free(area);
+    return -1; /* Map the memory to MEMRAM failed */
+  }
+  enlist_vm_rg_node(&cur_vma->vm_freerg_list, newrg);
+
+  free(area);
   return 0;
 }
 
-// #endif
+#endif
