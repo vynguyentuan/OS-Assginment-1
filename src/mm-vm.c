@@ -18,6 +18,7 @@
 #include "mm.h"
 #ifdef MM64
 #include "mm64.h"
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -215,4 +216,4 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
   return 0;
 }
 
-#endif
+
