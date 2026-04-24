@@ -165,8 +165,8 @@ int pte_set_fpn(struct pcb_t *caller, addr_t pgn, addr_t fpn)
   addr_t pmd=0;
   addr_t pt=0;
 	
-  // // dummy pte alloc to avoid runtime error
-  pte = malloc(sizeof(addr_t));
+  // dummy pte alloc to avoid runtime error
+  // pte = malloc(sizeof(addr_t));
 
 #ifdef MM64	
   /* Get value from the system */
@@ -190,15 +190,15 @@ int pte_set_fpn(struct pcb_t *caller, addr_t pgn, addr_t fpn)
 
   addr_t* pud_table=allocatePageIfNull((addr_t*)p4d_table[p4d]);
   if (pud_table==NULL) return -1;
-  mm->p4d[p4d]=(addr_t)pud_table;
+  p4d_table[p4d] = (addr_t)pud_table;
 
   addr_t* pmd_table=allocatePageIfNull((addr_t*)pud_table[pud]);
   if (pmd_table==NULL) return -1;
-  mm->pud[pud]=(addr_t)pmd_table;
+  pud_table[pud] = (addr_t)pmd_table;
 
   addr_t* pt_table=allocatePageIfNull((addr_t*)pmd_table[pmd]);
   if (pt_table==NULL) return -1;
-  mm->pmd[pmd]=(addr_t)pt_table;
+  pmd_table[pmd] = (addr_t)pt_table;
 
   pte=&pt_table[pt];
 
@@ -312,18 +312,23 @@ addr_t vmap_page_range(struct pcb_t *caller,           // process call
 {                                                   // no guarantee all given pages are mapped
   struct framephy_struct *fpit = frames;  // Initialize from frames parameter
   int pgit = 0;
-  addr_t pgn;
 
   #ifdef MM64
-    addr_t pgsz = PAGING64_PAGESZ;    // 4096
+    addr_t pgn = addr/PAGING64_PAGESZ;    // 4096
   #else
-    addr_t pgsz = PAGING_PAGESZ;    // 256
+    addr_t pgn = addr/PAGING_PAGESZ;    // 256
   #endif
 
   /* TODO: update the rg_end and rg_start of ret_rg  */
-  ret_rg->rg_start = addr;
-  ret_rg->rg_end   = addr + (addr_t)pgnum * pgsz;
-  ret_rg->vmaid    = 0;
+  if (ret_rg!=NULL){
+    ret_rg->rg_start=addr;
+
+    #ifdef MM64
+      ret_rg->rg_end=addr + pgnum*PAGING64_PAGESZ;    // 4096
+    #else
+      ret_rg->rg_end=addr + pgnum*PAGING_PAGESZ;    // 256
+    #endif
+  }
 
   /* TODO map range of frame to address space
    *      [addr to addr + pgnum*PAGING_PAGESZ
@@ -332,21 +337,23 @@ addr_t vmap_page_range(struct pcb_t *caller,           // process call
    *                    ...
    */
 
-  while (fpit != NULL && pgit < pgnum)
-  {
-    pgn = PAGING_PGN((addr + (addr_t)pgit * pgsz));
+  for (pgit=0;pgit<pgnum;pgit++){
+    if (fpit==NULL){
+      printf("So frame be hon %d page",pgnum);
+      return -1;
+    }
 
-    pte_set_fpn(caller, pgn, fpit->fpn);
+    pte_set_fpn(caller,pgn + pgit, fpit->fpn);
 
-    enlist_pgn_node(&caller->krnl->mm->fifo_pgn, pgn);
-    fpit = fpit->fp_next;
-    pgit++;
+    enlist_pgn_node(&caller->krnl->mm->fifo_pgn, pgn+pgit);
+
+    fpit=fpit->fp_next;
   }
 
   /* Tracking for later page replacement activities (if needed)
    * Enqueue new usage page */
   //enlist_pgn_node(&caller->krnl->mm->fifo_pgn, pgn64 + pgit);
-
+    
   return 0;
 }
 
@@ -405,6 +412,15 @@ addr_t alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_st
     }
     else
     { 
+      struct framephy_struct *tmp = head;
+      while (tmp != NULL)
+      {
+        MEMPHY_put_freefp(caller->krnl->mram, tmp->fpn);
+        struct framephy_struct *free_node = tmp;
+        tmp = tmp->fp_next;
+        free(free_node);
+      }
+
       *frm_lst=head; //Nhung gi lay duoc
       return -3000; //out of memory
     }
@@ -627,7 +643,7 @@ int print_pgtbl(struct pcb_t *caller, addr_t start, addr_t end)
 {
 //addr_t pgn_start;//, pgn_end;
 //addr_t pgit;
-  struct krnl_t *krnl = caller->krnl;
+  // struct krnl_t *krnl = caller->krnl;
 
   addr_t pgd=0;
   addr_t p4d=0;
@@ -644,7 +660,7 @@ int print_pgtbl(struct pcb_t *caller, addr_t start, addr_t end)
   addr_t pgit;
   for (pgit = pgn_start; pgit < pgn_end; pgit++)
   {
-    addr_t pte_val = krnl->mm->pgd[pgit];
+    addr_t pte_val = pte_get_entry(caller, pgit);
     if (PAGING_PAGE_PRESENT(pte_val))
     {
       printf("Page[" FORMAT_ADDR "] → Frame[" FORMAT_ADDR "] present=%d swapped=%d\n",
