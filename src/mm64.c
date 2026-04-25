@@ -507,12 +507,11 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
   struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
 
   /* TODO init page table directory */
-   mm->pgd = calloc(1<<9, sizeof(addr_t));
+   mm->pgd = calloc(PAGING64_MAX_PGN, sizeof(addr_t));
    mm->p4d = NULL;
    mm->pud = NULL;
    mm->pmd = NULL;
    mm->pt = NULL;
-
 
   /* By default the owner comes with at least one vma */
   vma0->vm_id = 0;
@@ -645,11 +644,16 @@ int print_pgtbl(struct pcb_t *caller, addr_t start, addr_t end)
 //addr_t pgit;
   // struct krnl_t *krnl = caller->krnl;
 
-  addr_t pgd=0;
-  addr_t p4d=0;
-  addr_t pud=0;
-  addr_t pmd=0;
-  addr_t pt=0;
+  struct krnl_t *krnl = caller->krnl;
+  struct mm_struct *mm = krnl->mm;
+  addr_t pgd, p4d, pud, pmd, pt;
+ 
+  printf("print_pgtbl:\n");
+  printf(" PDG=%p P4g=%p PUD=%p PMD=%p\n",
+         (void *)mm->pgd,
+         (void *)mm->p4d,
+         (void *)mm->pud,
+         (void *)mm->pmd);
 
   get_pd_from_address(start, &pgd, &p4d, &pud, &pmd, &pt);
 
