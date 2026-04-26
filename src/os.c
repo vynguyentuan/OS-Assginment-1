@@ -6,7 +6,7 @@
 #include "mm.h"
 /* Kích hoạt chế độ tương thích với file cấu hình cũ (Legacy Config). 
 Giúp hệ thống không bị kẹt khi đọc file sched_0 thiếu thông tin RAM/SWAP. */
-#define MM_FIXED_MEMSZ //*
+// #define MM_FIXED_MEMSZ //*
 #ifdef MM64
 #include "mm64.h"
 #endif
