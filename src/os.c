@@ -4,6 +4,9 @@
 #include "sched.h"
 #include "loader.h"
 #include "mm.h"
+/* Kích hoạt chế độ tương thích với file cấu hình cũ (Legacy Config). 
+Giúp hệ thống không bị kẹt khi đọc file sched_0 thiếu thông tin RAM/SWAP. */
+// #define MM_FIXED_MEMSZ //*
 #ifdef MM64
 #include "mm64.h"
 #endif
@@ -211,6 +214,9 @@ static void read_config(const char * path) {
 		ld_processes.path[i][0] = '\0';
 		strcat(ld_processes.path[i], "input/proc/");
 		char proc[100];
+		/* Reset bộ đệm tên tiến trình về chuỗi rỗng. 
+		Đảm bảo không bị dính ký tự rác (như @) nếu lệnh fscanf đọc file gặp lỗi. */
+		proc[0]='\0'; 
 #ifdef MLQ_SCHED
 		fscanf(file, "%lu %s %lu\n", &ld_processes.start_time[i], proc, &ld_processes.prio[i]);
 #else
