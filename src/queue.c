@@ -10,7 +10,12 @@ int empty(struct queue_t *q)
 }
 
 void enqueue(struct queue_t *q, struct pcb_t *proc) {
-    if (q == NULL || proc == NULL || q->size >= MAX_QUEUE_SIZE) return;
+    if (q == NULL || proc == NULL) return;
+    
+    if (q->size >= MAX_QUEUE_SIZE) {
+        printf("ERROR: Queue is full. Cannot enqueue PID %d\n", proc->pid);
+        return; 
+    }
     
     q->proc[q->size] = proc;
     q->size++;
