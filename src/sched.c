@@ -113,6 +113,8 @@ struct pcb_t * get_mlq_proc(void) {
 }
 
 void put_mlq_proc(struct pcb_t * proc) {
+	if (proc == NULL || proc->prio < 0 || proc->prio >= MAX_PRIO) return;
+
 	proc->krnl->ready_queue = &ready_queue;
 	proc->krnl->mlq_ready_queue = mlq_ready_queue;
 	proc->krnl->running_list = &running_list;
@@ -122,12 +124,18 @@ void put_mlq_proc(struct pcb_t * proc) {
 	 * 
 	 */
 
+
 	pthread_mutex_lock(&queue_lock);
+
+	purgequeue(&running_list, proc);
+
 	enqueue(&mlq_ready_queue[proc->prio], proc);
 	pthread_mutex_unlock(&queue_lock);
 }
 
 void add_mlq_proc(struct pcb_t * proc) {
+	if (proc == NULL || proc->prio < 0 || proc->prio >= MAX_PRIO) return;
+
 	proc->krnl->ready_queue = &ready_queue;
 	proc->krnl->mlq_ready_queue = mlq_ready_queue;
 	proc->krnl->running_list = &running_list;
@@ -136,6 +144,9 @@ void add_mlq_proc(struct pcb_t * proc) {
 	 *       It worth to protect by a mechanism.
 	 * 
 	 */
+
+	 /* Tiến trình mới nạp từ Loader chưa từng nằm trong running_list 
+       nên không cần purgequeue, chỉ cần đưa thẳng vào ready_queue là đủ. */
        
 	pthread_mutex_lock(&queue_lock);
 	enqueue(&mlq_ready_queue[proc->prio], proc);
@@ -163,6 +174,9 @@ struct pcb_t * get_proc(void) {
 	 * 
 	 */
 
+	if (!empty(&ready_queue)) {
+        proc = dequeue(&ready_queue);
+    }
 	pthread_mutex_unlock(&queue_lock);
 
 	return proc;
@@ -178,6 +192,7 @@ void put_proc(struct pcb_t * proc) {
 	 */
 
 	pthread_mutex_lock(&queue_lock);
+	purgequeue(&running_list, proc);
 	enqueue(&run_queue, proc);
 	pthread_mutex_unlock(&queue_lock);
 }
