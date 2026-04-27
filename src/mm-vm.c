@@ -213,6 +213,7 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
   enlist_vm_rg_node(&cur_vma->vm_freerg_list, newrg);
 
   free(area);
+  free(newrg);
   return 0;
 }
 
