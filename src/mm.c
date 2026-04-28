@@ -173,8 +173,24 @@ addr_t vmap_page_range(struct pcb_t *caller,           // process call
                     struct framephy_struct *frames, // list of the mapped frames
                     struct vm_rg_struct *ret_rg)    // return mapped region, the real mapped fp
 {                                                   // no guarantee all given pages are mapped
-  printf("[ERROR] %s: This feature 32 bit mode is deprecated\n", __func__);
-  return 0;
+  // printf("[ERROR] %s: This feature 32 bit mode is deprecated\n", __func__);
+  // return 0;
+
+  if (caller == NULL || frames == NULL || ret_rg == NULL) return -1;
+    
+    addr_t start_pgn = addr / PAGING_PAGESZ; 
+    struct framephy_struct *curr_frame = frames;
+
+    for (int i = 0; i < pgnum; i++) {
+        if (curr_frame == NULL) return -1; 
+        
+        pte_set_fpn(caller, start_pgn + i, curr_frame->fpn);
+        curr_frame = curr_frame->fp_next;
+    }
+
+    ret_rg->rg_start = addr;
+    ret_rg->rg_end = addr + pgnum * PAGING_PAGESZ;
+    return 0;
 }
 
 /*
@@ -184,10 +200,56 @@ addr_t vmap_page_range(struct pcb_t *caller,           // process call
  * @frm_lst   : frame list
  */
 
+/* Lấy 1 frame vật lý trống từ danh sách free_fp_list */
+static int extract_free_frame(struct memphy_struct *mram, int *out_fpn) {
+    if (mram == NULL || mram->free_fp_list == NULL) {
+        return -1; 
+    }
+    
+    struct framephy_struct *target_fp = mram->free_fp_list;
+    *out_fpn = target_fp->fpn;
+    mram->free_fp_list = target_fp->fp_next;
+
+    target_fp->fp_next = mram->used_fp_list;
+    mram->used_fp_list = target_fp;
+    
+    return 0;
+}
+ 
 addr_t alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct **frm_lst)
 {
-  printf("[ERROR] %s: This feature 32 bit mode is deprecated\n", __func__);
-  return 0;
+  // printf("[ERROR] %s: This feature 32 bit mode is deprecated\n", __func__);
+  // return 0;
+
+  if (req_pgnum <= 0 || caller == NULL || frm_lst == NULL) return -1;
+    
+    struct memphy_struct *mram = caller->krnl->mram;
+    struct framephy_struct *head = NULL;
+    struct framephy_struct *tail = NULL;
+
+    for (int i = 0; i < req_pgnum; i++) {
+        int fpn = -1;
+        
+        if (extract_free_frame(mram, &fpn) != 0) {
+            return -1; 
+        }
+        
+        struct framephy_struct *new_node = malloc(sizeof(struct framephy_struct));
+        if (new_node == NULL) return -1;
+        new_node->fpn = fpn;
+        new_node->fp_next = NULL;
+
+        if (head == NULL) {
+            head = new_node;
+            tail = new_node;
+        } else {
+            tail->fp_next = new_node;
+            tail = new_node;
+        }
+    }
+    
+    *frm_lst = head;
+    return 0;
 }
 
 /*
@@ -201,8 +263,26 @@ addr_t alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_st
  */
 addr_t vm_map_ram(struct pcb_t *caller, addr_t astart, addr_t aend, addr_t mapstart, int incpgnum, struct vm_rg_struct *ret_rg)
 {
-  printf("[ERROR] %s: This feature 32 bit mode is deprecated\n", __func__);
-  return 0;
+  struct framephy_struct *frm_lst = NULL;
+    
+    addr_t alloc_status = alloc_pages_range(caller, incpgnum, &frm_lst);
+    if (alloc_status != 0) {
+        return -1; 
+    }
+
+    addr_t map_status = vmap_page_range(caller, mapstart, incpgnum, frm_lst, ret_rg);
+    if (map_status != 0) {
+        return -1; 
+    }
+    
+    struct framephy_struct *curr = frm_lst;
+    while (curr != NULL) {
+        struct framephy_struct *temp = curr;
+        curr = curr->fp_next;
+        free(temp);
+    }
+
+    return 0;
 }
 
 /* Swap copy content page from source frame to destination frame
