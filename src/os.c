@@ -63,10 +63,10 @@ static void * cpu_routine(void * args) {
 			/* No process is running, the we load new process from
 		 	* ready queue */
 			proc = get_proc();
-			if (proc == NULL) {
-                           next_slot(timer_id);
-                           continue; /* First load failed. skip dummy load */
-                        }
+			// if (proc == NULL) {
+			// 	next_slot(timer_id);
+			// 	continue; /* First load failed. skip dummy load */
+			// }
 		}else if (proc->pc == proc->code->size) {
 			/* The porcess has finish it job */
 			printf("\tCPU %d: Processed %2d has finished\n",
@@ -127,11 +127,17 @@ static void * ld_routine(void * args) {
 
 	for (i = 0; i < PAGING64_MAX_PGN; i++)
 	{
-	   os.krnl_pgd[i] = (addr_t)&os.krnl_p4d;
-	   os.krnl_p4d[i] = (addr_t)&os.krnl_pud;
-	   os.krnl_pud[i] = (addr_t)&os.krnl_pmd;
-	   os.krnl_pmd[i] = (addr_t)&os.krnl_pt;
-	   os.krnl_pt[i] = 0;
+	//    os.krnl_pgd[i] = (addr_t)&os.krnl_p4d;
+	//    os.krnl_p4d[i] = (addr_t)&os.krnl_pud;
+	//    os.krnl_pud[i] = (addr_t)&os.krnl_pmd;
+	//    os.krnl_pmd[i] = (addr_t)&os.krnl_pt;
+	//    os.krnl_pt[i] = 0;
+
+		os.krnl_pgd[i] = (addr_t)os.krnl_p4d;
+		os.krnl_p4d[i] = (addr_t)os.krnl_pud;
+		os.krnl_pud[i] = (addr_t)os.krnl_pmd;
+		os.krnl_pmd[i] = (addr_t)os.krnl_pt;
+		os.krnl_pt[i] = 0;
 	}
 #else
 	os.krnl_pgd = malloc(PAGING_MAX_PGN * sizeof(uint32_t));
