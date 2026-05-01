@@ -601,7 +601,10 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller)
   }
 
   mm->fifo_pgn = NULL;
-  mm->kcpooltbl = NULL;
+  mm->kcpooltbl = calloc(PAGING_MAX_SYMTBL_SZ, sizeof(struct kcache_pool_struct));
+  if (mm->kcpooltbl == NULL) {
+      return -1;
+  }
 
   return 0;
 }
