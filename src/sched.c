@@ -176,6 +176,8 @@ struct pcb_t * get_proc(void) {
 
 	if (!empty(&ready_queue)) {
         proc = dequeue(&ready_queue);
+    } else if (!empty(&run_queue)) {
+        proc = dequeue(&run_queue);
     }
 	pthread_mutex_unlock(&queue_lock);
 
@@ -193,7 +195,7 @@ void put_proc(struct pcb_t * proc) {
 
 	pthread_mutex_lock(&queue_lock);
 	purgequeue(&running_list, proc);
-	enqueue(&run_queue, proc);
+	enqueue(&ready_queue, proc);
 	pthread_mutex_unlock(&queue_lock);
 }
 

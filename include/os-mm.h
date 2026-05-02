@@ -11,6 +11,10 @@
 #ifndef OSMM_H
 #define OSMM_H
 
+#ifndef OSCFG_H
+#include "os-cfg.h"
+#endif
+
 #include <stdint.h>
 
 #define MM_PAGING
